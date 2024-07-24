@@ -1,0 +1,55 @@
+---
+- name: Mount SMB Shares and Add to Fstab
+  hosts: all
+  become: yes
+  vars:
+    smb_shares:
+      - { share: "//192.168.0.5/Media", mount_point: "/mnt/media" }
+      - { share: "//192.168.0.5/Downloads", mount_point: "/mnt/downloads" }
+    smb_creds_file: /etc/samba/creds
+    smb_user: "{{ lookup('env', 'SMB_USER') }}"  # Reference the environment variable for smb_user
+    smb_password: "{{ lookup('env', 'SMB_PASSWORD') }}"  # Reference the environment variable for smb_password
+  tasks:
+    - name: Install cifs-utils package
+      apt:
+        name: cifs-utils
+        state: present
+
+    - name: Create the mount points
+      file:
+        path: "{{ item.mount_point }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      with_items: "{{ smb_shares }}"
+
+    - name: Create SMB credentials file
+      copy:
+        dest: "{{ smb_creds_file }}"
+        content: |
+          username={{ smb_user }}
+          password={{ smb_password }}
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Mount the SMB shares
+      mount:
+        src: "{{ item.share }}"
+        path: "{{ item.mount_point }}"
+        fstype: cifs
+        opts: credentials={{ smb_creds_file }},iocharset=utf8
+        state: mounted
+      with_items: "{{ smb_shares }}"
+
+    - name: Ensure the SMB shares are added to /etc/fstab
+      mount:
+        src: "{{ item.share }}"
+        path: "{{ item.mount_point }}"
+        fstype: cifs
+        opts: credentials={{ smb_creds_file }},iocharset=utf8
+        dump: 0
+        passno: 0
+        state: present
+      with_items: "{{ smb_shares }}"
