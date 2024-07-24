@@ -11,11 +11,13 @@
     smb_password: "{{ lookup('env', 'SMB_PASSWORD') }}"  # Reference the environment variable for smb_password
   tasks:
     - name: Install cifs-utils package
+      become: yes
       apt:
         name: cifs-utils
         state: present
 
     - name: Create the mount points
+      become: yes
       file:
         path: "{{ item.mount_point }}"
         state: directory
@@ -25,6 +27,7 @@
       with_items: "{{ smb_shares }}"
 
     - name: Create SMB credentials file
+      become: yes
       copy:
         dest: "{{ smb_creds_file }}"
         content: |
@@ -35,6 +38,7 @@
         mode: '0600'
 
     - name: Mount the SMB shares
+      become: yes
       mount:
         src: "{{ item.share }}"
         path: "{{ item.mount_point }}"
@@ -44,6 +48,7 @@
       with_items: "{{ smb_shares }}"
 
     - name: Ensure the SMB shares are added to /etc/fstab
+      become: yes
       mount:
         src: "{{ item.share }}"
         path: "{{ item.mount_point }}"
